@@ -12,6 +12,9 @@ data <- as.data.frame(data)
 data$jour <- as.Date(data$jour)
 data <- data[order(data$jour), ]
 
+# library
+library(dplyr)
+
 # get all men data
 dataH <- data %>% select(contains(c("reg","clage","jour","_h")))
 
