@@ -20,11 +20,17 @@ data <- data[order(data$jour), ]
 library(dplyr)
 library(foreach)
 library(lubridate)
+library(ggplot2)
 
 listReg <- sort(data$reg[!duplicated(data$reg)])
 dataByRegionByMonth <- foreach(i=listReg) %do% (data[data$reg == i, ] %>% group_by(month=floor_date(jour, "month"),reg=reg) %>% summarize(n_dose1_h=sum(n_dose1_h),n_dose1_f=sum(n_dose1_f)))
 
 statsDataByRegionByMonth <- list()
+find_mode <- function(x) {
+  u <- unique(x)
+  tab <- tabulate(match(x, u))
+  u[tab == max(tab)]
+}
 
 statsDataByRegionByMonth <- 
     foreach(i=1:length(dataByRegionByMonth)) %do% (list(
@@ -48,8 +54,16 @@ statsDataByRegionByMonth <-
         ))
 View(statsDataByRegionByMonth)
 
-# for each statsDataByRegionByMonth create a graph for corelation
 foreach(i=1:length(statsDataByRegionByMonth)) %do% {
-    plot(dataByRegionByMonth[[i]]$n_dose1_h,dataByRegionByMonth[[i]]$n_dose1_f, main=paste("Corelation entre le nombre de vaccinés hommes et femmes pour la région",statsDataByRegionByMonth[[i]]$region), xlab="Nombre de vaccinés hommes", ylab="Nombre de vaccinés femmes")
-    abline(lm(dataByRegionByMonth[[i]]$n_dose1_h~dataByRegionByMonth[[i]]$n_dose1_f), col="red")
+    ggplot(dataByRegionByMonth[[i]], 
+            aes(x=n_dose1_h, y=n_dose1_f)) + geom_point() + geom_smooth(method=lm) + 
+            labs(title=paste("Regression lineaire pour la region",
+            statsDataByRegionByMonth[[i]]$region), 
+            x="Nombre de vaccin 1er dose pour les hommes", y="Nombre de vaccin 1er dose pour les femmes") + 
+            geom_text(aes(label=month), vjust=-0.5, hjust=0.5, size=3) 
+    # predict the number of first dose for january 2023
+      modele <- lm(n_dose1_h ~ n_dose1_f ~ month, data=dataByRegionByMonth[[i]])
+      predict <- predict(modele, data.frame(n_dose1_f=statsDataByRegionByMonth[[i]]$modeFemme))
+      print(paste("Nombre de vaccin 1er dose pour les hommes en janvier 2023 pour la region",
+                  statsDataByRegionByMonth[[i]]$region, "est de", predict))
 }
