@@ -55,15 +55,26 @@ statsDataByRegionByMonth <-
 View(statsDataByRegionByMonth)
 
 foreach(i=1:length(statsDataByRegionByMonth)) %do% {
-    ggplot(dataByRegionByMonth[[i]], 
-            aes(x=n_dose1_h, y=n_dose1_f)) + geom_point() + geom_smooth(method=lm) + 
-            labs(title=paste("Regression lineaire pour la region",
-            statsDataByRegionByMonth[[i]]$region), 
-            x="Nombre de vaccin 1er dose pour les hommes", y="Nombre de vaccin 1er dose pour les femmes") + 
-            geom_text(aes(label=month), vjust=-0.5, hjust=0.5, size=3) 
-    # predict the number of first dose for january 2023
-      modele <- lm(n_dose1_h ~ n_dose1_f ~ month, data=dataByRegionByMonth[[i]])
-      predict <- predict(modele, data.frame(n_dose1_f=statsDataByRegionByMonth[[i]]$modeFemme))
-      print(paste("Nombre de vaccin 1er dose pour les hommes en janvier 2023 pour la region",
-                  statsDataByRegionByMonth[[i]]$region, "est de", predict))
+  # plot y = n_dose1_h en fonction de x = month
+  plot(
+    dataByRegionByMonth[[i]]$month,
+    dataByRegionByMonth[[i]]$n_dose1_h,
+    main=statsDataByRegionByMonth[[i]]$region,
+    xlab="Mois",
+    ylab="Nombre de vaccinés",
+    col="blue",
+    pch=19)
+  
+  points(
+    dataByRegionByMonth[[i]]$month,
+    dataByRegionByMonth[[i]]$n_dose1_f,
+    col="red",
+    pch=19)
+  
+  modele <- lm(n_dose1_f ~ poly(month,1), data=dataByRegionByMonth[[i]])
+  nextDate <- data.frame(month = as.Date(c("2023-01-01","2023-02-01")))
+  predict <- predict(modele, nextDate , interval = "confidence")
+
+  print(predict)
 }
+
