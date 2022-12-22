@@ -1,8 +1,5 @@
-#  PREVION DU NOMBRE DE VACCINE(3 eme dose) EN % PAR REGION PROPORTION 2020,2021,2022 
-#  ET PREVOIR POUR 2023
-
 # set working directory
-setwd("C:/ipssi/projet-r")
+setwd("D:/IPPSI/M2/R/projet-r")
 
 data <- read.csv("data.csv", header = TRUE, sep = ";")
 
@@ -22,8 +19,11 @@ library(foreach)
 library(lubridate)
 library(ggplot2)
 
+# nolint start
 listReg <- sort(data$reg[!duplicated(data$reg)])
-dataByRegionByMonth <- foreach(i=listReg) %do% (data[data$reg == i, ] %>% group_by(month=floor_date(jour, "month"),reg=reg) %>% summarize(n_2_rappel_h=sum(n_2_rappel_h),n_2_rappel_f=sum(n_2_rappel_f)))
+dataByRegionByMonth <- foreach(i=listReg) %do% (data[data$reg == i, ] %>% 
+                        group_by(month=floor_date(jour, "month"),reg=reg) %>% 
+                        summarize(n_2_rappel_h=sum(n_2_rappel_h),n_2_rappel_f=sum(n_2_rappel_f)))
 
 statsDataByRegionByMonth <- list()
 find_mode <- function(x) {
@@ -31,8 +31,6 @@ find_mode <- function(x) {
   tab <- tabulate(match(x, u))
   u[tab == max(tab)]
 }
-
-View()
 
 statsDataByRegionByMonth <- 
     foreach(i=1:length(dataByRegionByMonth)) %do% (list(
@@ -44,7 +42,7 @@ statsDataByRegionByMonth <-
             interQuantileHomme=IQR(dataByRegionByMonth[[i]]$n_2_rappel_h),
             interQuantileFemme=IQR(dataByRegionByMonth[[i]]$n_2_rappel_f),
             firstDecileHomme=quantile(dataByRegionByMonth[[i]]$n_2_rappel_h,0.1),
-            firstDecileFemme=quantile(dataByRegionByMonth[[i]]$n_2_rappel_f,0.1),
+            firstDecileFemme=quantile(dataByRegionByMonth[[i]]$n_2_rappel_f,0.1),  
             lastDecileHomme=quantile(dataByRegionByMonth[[i]]$n_2_rappel_h,0.9),
             lastDecileFemme=quantile(dataByRegionByMonth[[i]]$n_2_rappel_f,0.9),
             varianceHomme=var(dataByRegionByMonth[[i]]$n_2_rappel_h),
@@ -67,7 +65,7 @@ foreach(i=1:length(statsDataByRegionByMonth)) %do% {
     ylab="Nombre de vaccinés",
     col="blue",
     pch=19)
-  
+
   points(
     dataByRegionByMonth[[i]]$month,
     dataByRegionByMonth[[i]]$n_2_rappel_f,
@@ -78,16 +76,27 @@ foreach(i=1:length(statsDataByRegionByMonth)) %do% {
   abline(lm(dataByRegionByMonth[[i]]$n_2_rappel_h ~ dataByRegionByMonth[[i]]$month), col="blue")
 
   # predict for 2023 each month
-  modele <- lm(n_2_rappel_h ~ poly(month,1) , data=dataByRegionByMonth[[i]])
+  modeleHomme <- lm(n_2_rappel_h ~ poly(month,1) , data=dataByRegionByMonth[[i]])
   new <- data.frame(month=as.Date(c("2023-01-01", "2023-02-01")))
-  predict <- predict(modele, new , interval="confidence")
+  predict <- predict(modeleHomme, new , interval="confidence")
   predict <- data.frame(predict)
 
-  # plot predict
-  points(new$month, predict$fit, col="yellow")
+  modeleFemme <- lm(n_2_rappel_f ~ poly(month,1) , data=dataByRegionByMonth[[i]])
+  new1 <- data.frame(month=as.Date(c("2023-01-01", "2023-02-01")))
+  predict1 <- predict(modeleFemme, new1 , interval="confidence")
+  predict1 <- data.frame(predict1)
+
+  # plot predict homme
+  points(new$month, predict$fit, col="#459afc")
   points(new$month, predict$lwr, col="cyan")
-  points(new$month, predict$upr, col="green")
-  
+  points(new$month, predict$upr, col="#1656cc")
 
+  # plot predict femme
+  points(new1$month, predict1$fit, col="#ff9900")
+  points(new1$month, predict1$lwr, col="#ce5221")
+  points(new1$month, predict1$upr, col="#ff0000")
+
+  # legend
+  legend("topleft", legend=c("Homme", "Femme"), col=c("blue", "red"), pch=19)
 }
-
+# nolint end
