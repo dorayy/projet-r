@@ -1,7 +1,7 @@
 #  PREVION DU NOMBRE DE dose(total) EN %  ET PREVISION VACCIN ADMINISTRER POUR 2023
 
 # set working directory
-setwd("D:/IPPSI/M2/R/projet-r")
+setwd("C:/Users/lahou/Documents/IPSSI/Maths-R/projet-r/")
 
 data <- read.csv("data.csv", header = TRUE, sep = ";")
 
@@ -27,6 +27,20 @@ dataSumDose <- data %>% group_by(month=floor_date(jour, "month")) %>%
 dataSumDose$sumCount <- cumsum(dataSumDose$count)
 
 View(dataSumDose)
+
+data.ts = ts(dataSumDose$sumCount, start=c(2020,12), frequency = 12)
+seasonal_arima_model = auto.arima(data.ts)
+season_arima_forecast = forecast(seasonal_arima_model, h=12, level=c(80,99))
+df_forecast <- as.data.frame(season_arima_forecast)
+
+plot(
+  season_arima_forecast,
+  main="Prévision pour le nombre de vaccination",
+  ylim=c(0,max(df_forecast[[1]])),
+  xlab="Mois",
+  ylab="Nombre de vaccinés",
+  col="blue",
+  pch=19)
 
 # plot
 ggplot(dataSumDose, aes(x=month, y=sumCount)) + geom_line() + geom_point() + 
