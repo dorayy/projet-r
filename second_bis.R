@@ -21,7 +21,6 @@ library(ggplot2)
 
 # nolint start
 listReg <- sort(data$reg[!duplicated(data$reg)])
-nomReg <- c("Guadeloupe","Martinique","Guyane","La Réunion","Saint-Pierre-et-Miquelon","Mayotte","Saint-Barthélemy","Saint-Martin","Ile-de-France","Centre-Val de Loire","Bourgogne-Franche-Comté","Normandie","Hauts-de-France","Grand Est","Pays de la Loire","Bretagne","Nouvelle-Aquitaine","Occitanie","Auvergne-Rhône-Alpes","Provence-Alpes-Côte d’Azur","Corse")
 dataByRegionByMonth <- foreach(i=listReg) %do% (data[data$reg == i, ] %>% 
                         group_by(month=floor_date(jour, "month"),reg=reg) %>% 
                         summarize(n_2_rappel_h=sum(n_2_rappel_h),n_2_rappel_f=sum(n_2_rappel_f)))
@@ -36,7 +35,6 @@ find_mode <- function(x) {
 statsDataByRegionByMonth <- 
     foreach(i=1:length(dataByRegionByMonth)) %do% (list(
             region=dataByRegionByMonth[[i]]$reg[1],
-            name=nomReg[i],
             summaryHomme=summary(dataByRegionByMonth[[i]]$n_2_rappel_h),
             summaryFemme=summary(dataByRegionByMonth[[i]]$n_2_rappel_f),
             modeHomme=find_mode(dataByRegionByMonth[[i]]$n_2_rappel_h)[1],
@@ -57,32 +55,48 @@ statsDataByRegionByMonth <-
 View(statsDataByRegionByMonth)
 
 foreach(i=1:length(statsDataByRegionByMonth)) %do% {
-  
-  dataH.ts = ts(dataByRegionByMonth[[i]]$n_2_rappel_h, start=c(2020,12), frequency = 12)
-  seasonal_arima_modelH = auto.arima(dataH.ts)
-  season_arima_forecastH = forecast(seasonal_arima_modelH, h=3, level=c(80,99))
-  
+  # plot y = n_2_rappel_h en fonction de x = month
   plot(
-    season_arima_forecastH,
-    main=statsDataByRegionByMonth[[i]]$name,
-    ylim=c(0,max(dataByRegionByMonth[[i]]$n_2_rappel_h)),
+    dataByRegionByMonth[[i]]$month,
+    dataByRegionByMonth[[i]]$n_2_rappel_h,
+    main=statsDataByRegionByMonth[[i]]$region,
+    xlim=c(as.Date("2020-01-01"), as.Date("2023-03-01")),
     xlab="Mois",
-    ylab="Nombre de vaccinés H",
+    ylab="Nombre de vaccinés",
     col="blue",
     pch=19)
-  
-  dataF.ts = ts(dataByRegionByMonth[[i]]$n_2_rappel_f, start=c(2020,12), frequency = 12)
-  seasonal_arima_modelF = auto.arima(dataF.ts)
-  season_arima_forecastF = forecast(seasonal_arima_modelF, h=3, level=c(80,99))
-  
-  plot(
-    season_arima_forecastF,
-    main=statsDataByRegionByMonth[[i]]$name,
-    ylim=c(0,max(dataByRegionByMonth[[i]]$n_2_rappel_f)),
-    xlab="Mois",
-    ylab="Nombre de vaccinés F",
-    col="blue",
+
+  points(
+    dataByRegionByMonth[[i]]$month,
+    dataByRegionByMonth[[i]]$n_2_rappel_f,
+    col="red",
     pch=19)
-  
+
+  # regression lineaire
+  abline(lm(dataByRegionByMonth[[i]]$n_2_rappel_h ~ dataByRegionByMonth[[i]]$month), col="blue")
+
+  # predict for 2023 each month
+  modeleHomme <- lm(n_2_rappel_h ~ poly(month,1) , data=dataByRegionByMonth[[i]])
+  new <- data.frame(month=as.Date(c("2023-01-01", "2023-02-01")))
+  predict <- predict(modeleHomme, new , interval="confidence")
+  predict <- data.frame(predict)
+
+  modeleFemme <- lm(n_2_rappel_f ~ poly(month,1) , data=dataByRegionByMonth[[i]])
+  new1 <- data.frame(month=as.Date(c("2023-01-01", "2023-02-01")))
+  predict1 <- predict(modeleFemme, new1 , interval="confidence")
+  predict1 <- data.frame(predict1)
+
+  # plot predict homme
+  points(new$month, predict$fit, col="#459afc")
+  points(new$month, predict$lwr, col="cyan")
+  points(new$month, predict$upr, col="#1656cc")
+
+  # plot predict femme
+  points(new1$month, predict1$fit, col="#ff9900")
+  points(new1$month, predict1$lwr, col="#ce5221")
+  points(new1$month, predict1$upr, col="#ff0000")
+
+  # legend
+  legend("topleft", legend=c("Homme", "Femme"), col=c("blue", "red"), pch=19)
 }
 # nolint end
